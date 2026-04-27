@@ -101,7 +101,7 @@ header {
 /* CONTAINER */
 .container {
   display:grid;
-  grid-template-columns:repeat(2,1fr);
+  grid-template-columns:repeat(2,1fr) !important;
   gap:8px;
   padding:8px;
   background:#ebebeb;
@@ -355,9 +355,8 @@ button {
 
   /* Grid: 1 columna en móvil pequeño, 2 en tablets */
   .container {
-    grid-template-columns: 1fr;
     padding:12px;
-    gap:12px;
+    gap:8px;
   }
 
   /* Botones de producto más grandes y fáciles de tocar */
