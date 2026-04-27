@@ -621,9 +621,9 @@ function renderProductos(lista) {
 
       ${auth.currentUser ? `
         <hr>
-        <input type="number" placeholder="Nuevo precio" id="precio-${id}">
-        <input type="number" placeholder="Nuevo stock" id="stock-${id}">
-        <input type="number" placeholder="Nuevo envío" id="envio-${id}">
+        <input type="number" placeholder="Nuevo precio" id="precio-${id}" style="width:50%">
+        <input type="number" placeholder="Nuevo stock" id="stock-${id}" style="width:50%">
+        <input type="number" placeholder="Nuevo envío" id="envio-${id}" style="width:50%">
         <button onclick="editar('${id}')">Actualizar</button>
         <button onclick="borrarProducto('${id}')" style="background:red;color:white;">Eliminar</button>
       ` : ""}
