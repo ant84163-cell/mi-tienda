@@ -664,7 +664,7 @@ window.comprarConEnvio = (nombre, precio, envio, id, stock) => {
   const c = validarYCorregirCantidad(id, stock);
   if (c === null) return;
   const total = (precio * c) + (Number(envio) || 0);
-  const msg = `Hola! Me interesa comprar ${c} pieza(s) de ${nombre}\nPrecio: $${precio * c}\nEnvío: $${Number(envio) || 0}\nTotal: $${total}`;
+  const msg = `Hola! Me interesa comprar ${c} pieza(s) de ${nombre}\nPrecio: $${precio * c}\nMas Envío: $${Number(envio) || 0}\nTotal: $${total}`;
   window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`);
 };
 
