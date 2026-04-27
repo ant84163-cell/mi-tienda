@@ -655,14 +655,16 @@ function validarYCorregirCantidad(id, stock) {
 window.comprar = (nombre, id, stock) => {
   const c = validarYCorregirCantidad(id, stock);
   if (c === null) return;
-  window.open(`https://wa.me/${WA_NUMBER}?text=Quiero ${c} piezas de ${nombre}`);
+  const producto = todosLosProductos.find(p => p.id === id);
+  const precio = producto ? producto.precio : "";
+  window.open(`https://wa.me/${WA_NUMBER}?text=Hola! Me interesa comprar ${c} pieza(s) de ${nombre}%0APrecio: $${precio * c}%0APara pasar a recoger en bodega`);
 };
 
 window.comprarConEnvio = (nombre, precio, envio, id, stock) => {
   const c = validarYCorregirCantidad(id, stock);
   if (c === null) return;
   const total = (precio * c) + (Number(envio) || 0);
-  const msg   = `Quiero ${c} de ${nombre}\nTotal: $${total}`;
+  const msg = `Hola! Me interesa comprar ${c} pieza(s) de ${nombre}\nPrecio: $${precio * c}\nEnvío: $${Number(envio) || 0}\nTotal: $${total}`;
   window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`);
 };
 
