@@ -158,9 +158,9 @@ header {
 }
 
 .stock {
-  background:#fff;
-  color:#00a650;
-  border:1px solid #00a650;
+  background:#fff7e6;
+  color:#e65c00;
+  border:1px solid #e65c00;
   padding:2px 6px;
   border-radius:4px;
   display:inline-block;
@@ -169,7 +169,7 @@ header {
 }
 
 .card input[type="number"] {
-  width:60px;
+  width:50px;
   padding:4px;
   font-size:13px;
   text-align:center;
@@ -216,6 +216,27 @@ header {
   color:#fff;
   padding:10px;
   text-align:center;
+}
+
+.admin-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
+  padding:4px 0 8px;
+  color:#fff;
+  font-size:14px;
+  font-weight:500;
+}
+
+.admin-body {
+  display:none;
+  flex-direction:column;
+  gap:8px;
+}
+
+.admin-body.open {
+  display:flex;
 }
 
 .carrito-btn {
@@ -415,13 +436,18 @@ button {
 </div>
 
 <div class="admin" id="adminPanel">
-  <input id="nombre" placeholder="Nombre">
-  <input id="precio" placeholder="Precio">
-  <input id="categoria" placeholder="Categoría">
-  <input id="imagen" placeholder="URL imagen">
-  <input id="stock" placeholder="Stock">
-  <input id="envio" placeholder="Envío">
-  <button onclick="agregarProducto()">Guardar</button>
+  <div class="admin-header" onclick="toggleAdmin()">
+    ⚙️ Panel Admin <span id="adminArrow">▼ Abrir</span>
+  </div>
+  <div class="admin-body" id="adminBody">
+    <input id="nombre" placeholder="Nombre">
+    <input id="precio" placeholder="Precio">
+    <input id="categoria" placeholder="Categoría">
+    <input id="imagen" placeholder="URL imagen">
+    <input id="stock" placeholder="Stock">
+    <input id="envio" placeholder="Envío">
+    <button onclick="agregarProducto()">Guardar</button>
+  </div>
 </div>
 
 <!-- 🔥 BARRA DE BÚSQUEDA Y FILTROS -->
@@ -445,8 +471,12 @@ button {
   <h2>Carrito</h2>
   <div id="listaCarrito"></div>
   <h3 id="total">Total: $0</h3>
-  <button onclick="pagar()" style="width:100%;background:#25D366;color:white;padding:10px;">
-    Pagar
+  <div id="resumenEnvio" style="font-size:13px;color:#555;margin-bottom:8px;"></div>
+  <button onclick="pagar(false)" style="width:100%;background:#3483fa;color:white;padding:10px;border-radius:8px;font-size:15px;margin-bottom:6px;">
+    Comprar (recoger en bodega)
+  </button>
+  <button onclick="pagar(true)" style="width:100%;background:#39b54a;color:white;padding:10px;border-radius:8px;font-size:15px;">
+    Comprar + Envío
   </button>
 </div>
 
@@ -504,6 +534,13 @@ onAuthStateChanged(auth, user => {
 
 window.toggleLogin = () => loginBox.classList.toggle("open");
 
+window.toggleAdmin = () => {
+  const body = document.getElementById("adminBody");
+  const arrow = document.getElementById("adminArrow");
+  body.classList.toggle("open");
+  arrow.textContent = body.classList.contains("open") ? "▲ Cerrar" : "▼ Abrir";
+};
+
 window.login = async () => {
   try {
     await signInWithEmailAndPassword(auth, correo.value, pass.value);
@@ -521,16 +558,29 @@ window.logout = async () => {
 };
 
 window.agregarProducto = async () => {
+  const inNombre    = document.getElementById("nombre");
+  const inPrecio    = document.getElementById("precio");
+  const inCategoria = document.getElementById("categoria");
+  const inImagen    = document.getElementById("imagen");
+  const inStock     = document.getElementById("stock");
+  const inEnvio     = document.getElementById("envio");
+
   try {
     await addDoc(collection(db, "productos"), {
-      nombre: nombre.value,
-      precio: parseFloat(precio.value),
-      categoria: categoria.value,
-      imagen: imagen.value,
-      stock: parseInt(stock.value),
-      envio: parseFloat(envio.value) || 0
+      nombre:    inNombre.value,
+      precio:    parseFloat(inPrecio.value),
+      categoria: inCategoria.value,
+      imagen:    inImagen.value,
+      stock:     parseInt(inStock.value),
+      envio:     parseFloat(inEnvio.value) || 0
     });
     showToast("Producto guardado 🔥");
+    inNombre.value    = "";
+    inPrecio.value    = "";
+    inCategoria.value = "";
+    inImagen.value    = "";
+    inStock.value     = "";
+    inEnvio.value     = "";
     cargar();
   } catch(e) {
     showToast("Error al guardar: " + e.message, "error");
@@ -612,7 +662,7 @@ function renderProductos(lista) {
       <div class="envio">Envío: $${p.envio || 0}</div>
 
       ${p.stock > 0 ? `
-        <div class="stock">Stock: ${p.stock}</div><br>
+        <div class="stock">Disponible: ${p.stock}</div><br>
         <input type="number" min="1" max="${p.stock}" value="1" id="c-${id}">
         <button class="btn-carrito" onclick="addCar('${id}','${p.nombre}',${p.precio},${p.envio || 0},${p.stock})">🛒</button>
         <button class="btn-comprar" onclick="comprar('${p.nombre}','${id}',${p.stock})">Comprar</button>
@@ -723,36 +773,55 @@ window.addCar = (id, n, p, envio, stockDisponible) => {
   render();
 };
 
+function calcularEnvio() {
+  // 🔥 Si hay más de 1 producto diferente: $25, si es 1 producto (cualquier cantidad): $20
+  const productosUnicos = carritoData.length;
+  if (productosUnicos === 0) return 0;
+  return productosUnicos > 1 ? 25 : 20;
+}
+
 function render() {
   listaCarrito.innerHTML = "";
-  let total = 0, items = 0;
+  let subtotal = 0, items = 0;
 
   carritoData.forEach((p, i) => {
     const precio   = Number(p.p) || 0;
     const cantidad = Number(p.c) || 0;
-    const envio    = Number(p.envio) || 0;
-    const sub      = (precio * cantidad) + envio;
+    const sub      = precio * cantidad;
 
-    total += sub;
-    items += cantidad;
+    subtotal += sub;
+    items    += cantidad;
 
     listaCarrito.innerHTML += `
     <div style="display:flex;gap:10px;margin-bottom:10px;border-bottom:1px solid #ddd;padding-bottom:10px;">
       <img src="${p.img}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;">
       <div>
         <b>${p.n}</b><br>
-        $${precio} x ${cantidad}<br>
-        Envío: $${envio}<br>
-        <button onclick="cambiar(${i},-1)">➖</button>
+        $${precio} x ${cantidad} = $${sub}<br>
+        <button onclick="cambiar(${i},-1)" style="background:#eee;color:#333;">➖</button>
         ${cantidad}
-        <button onclick="cambiar(${i},1)">➕</button>
+        <button onclick="cambiar(${i},1)" style="background:#eee;color:#333;">➕</button>
         <br>
-        <button onclick="eliminar(${i})">❌</button>
+        <button onclick="eliminar(${i})" style="background:#fee;color:red;">❌ Quitar</button>
       </div>
     </div>`;
   });
 
-  document.getElementById("total").innerText = "Total: $" + total;
+  const costoEnvio = calcularEnvio();
+  const resumen    = document.getElementById("resumenEnvio");
+
+  if (carritoData.length > 0) {
+    resumen.innerHTML = `
+      <div style="background:#f9f9f9;border-radius:8px;padding:8px 10px;">
+        Subtotal: <b>$${subtotal}</b><br>
+        Envío estimado: <b>$${costoEnvio}</b>
+        <span style="font-size:11px;color:#888;">(${carritoData.length > 1 ? 'varios productos' : '1 producto'})</span>
+      </div>`;
+  } else {
+    resumen.innerHTML = "";
+  }
+
+  document.getElementById("total").innerText = "Total sin envío: $" + subtotal;
   document.getElementById("contadorCarrito").innerText = items;
   guardarCarrito();
 }
@@ -779,23 +848,30 @@ window.eliminar = (i) => {
 
 window.toggleCarrito = () => carrito.classList.toggle("active");
 
-window.pagar = () => {
+window.pagar = (conEnvio) => {
   if (carritoData.length === 0) {
     showToast("El carrito está vacío 😢", "error");
     return;
   }
 
-  let msg = "Pedido:\n";
-  let total = 0;
+  let msg = "Hola! Mi pedido es:\n";
+  let subtotal = 0;
 
   carritoData.forEach(p => {
-    const envio = Number(p.envio) || 0;
-    const sub   = (p.p * p.c) + envio;
-    msg  += `${p.n} x${p.c} = $${sub}\n`;
-    total += sub;
+    const sub = p.p * p.c;
+    msg      += `• ${p.n} x${p.c} = $${sub}\n`;
+    subtotal += sub;
   });
 
-  msg += "Total: $" + total;
+  if (conEnvio) {
+    const envio = calcularEnvio();
+    msg += `\nEnvío: $${envio}`;
+    msg += `\nTotal con envío: $${subtotal + envio}`;
+  } else {
+    msg += `\nTotal: $${subtotal}`;
+    msg += `\nPaso a recoger en bodega`;
+  }
+
   window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`);
 };
 
